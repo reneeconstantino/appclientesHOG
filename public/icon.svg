@@ -1,0 +1,25 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#11141B"/>
+      <stop offset="1" stop-color="#07080A"/>
+    </linearGradient>
+    <radialGradient id="mist" cx="0.72" cy="0.22" r="0.8">
+      <stop offset="0" stop-color="#7FD8D0" stop-opacity="0.45"/>
+      <stop offset="0.5" stop-color="#7FD8D0" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#7FD8D0" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#E8D2A4"/>
+      <stop offset="0.5" stop-color="#D8B777"/>
+      <stop offset="1" stop-color="#A8824A"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="112" fill="url(#mist)"/>
+  <g opacity="0.5" stroke="#A9C7D6" stroke-width="6" stroke-linecap="round" fill="none">
+    <path d="M104 348 q60 -26 120 0 t184 0"/>
+    <path d="M104 392 q60 -26 120 0 t184 0" opacity="0.6"/>
+  </g>
+  <text x="256" y="312" font-family="Georgia, 'Times New Roman', serif" font-size="280" font-weight="400" fill="url(#gold)" text-anchor="middle">B</text>
+</svg>

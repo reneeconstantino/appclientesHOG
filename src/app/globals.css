@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --font-display: "Fraunces", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+html,
+body {
+  background: #07080a;
+  color: #f4f6f8;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  /* Atmospheric "bruma" (mist) — layered radial glows behind everything */
+  background-image:
+    radial-gradient(120% 80% at 78% -8%, rgba(127, 216, 208, 0.10) 0%, transparent 46%),
+    radial-gradient(90% 60% at 12% 4%, rgba(216, 183, 119, 0.07) 0%, transparent 42%),
+    radial-gradient(140% 120% at 50% 120%, rgba(60, 110, 115, 0.10) 0%, transparent 55%);
+  background-attachment: fixed;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  /* Native iOS momentum + no tap highlight */
+  -webkit-tap-highlight-color: transparent;
+}
+
+* {
+  -webkit-touch-callout: none;
+}
+
+/* Disable text selection on chrome UI, keep it on data */
+button,
+.no-select {
+  user-select: none;
+}
+
+/* Tabular, technical figures everywhere numbers live */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Hairline-thin scrollbars, iOS-quiet */
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* Frosted glass surface */
+.glass {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.055) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.gold-text {
+  background: linear-gradient(100deg, #e8d2a4 0%, #d8b777 40%, #a8824a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Staggered entrance helper */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
