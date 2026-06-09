@@ -5,7 +5,7 @@ const MESES = [
   "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE",
 ];
 
-/** RFC-tolerant CSV → string[][] (handles quotes, commas, CRLF). */
+/** RFC-tolerant CSV → string[][] (comillas, comas, CRLF). */
 export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -31,7 +31,7 @@ export function parseCsv(text: string): string[][] {
       row = [];
       field = "";
     } else if (c === "\r") {
-      // swallow; \n handles the break
+      // swallow; \n cierra la línea
     } else {
       field += c;
     }
@@ -48,131 +48,161 @@ const toInt = (s: string | undefined) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-const SEMANA_RE = /SEMANA\s+(\d+)\s*(?:\(([^)]*)\))?/i;
+const SEMANA_RE = /^SEMANA\s+(\d+)\s*(?:\(([^)]*)\))?/i;
+const RP_RE = /^RP\s*\d+/i;        // "RP1", "RP2", "RP1 - RENEE"
+const RP_ID_RE = /^RP\s*(\d+)/i;
+const KEYWORD_RE = /^(SEMANA|NOMBRE|TOTAL|PAX|RP\s*\d|SUMA)/i;
+// día exacto opcional al final del nombre: "María López (05)"
+const FECHA_RE = /\((\d{1,2})\)\s*$/;
 
-interface ActiveWeek {
+interface Col {
   nameCol: number;
   paxCol: number;
   week: Week;
+  rpId: string | null;     // "RP1".. o null (propia)
+  rpLabel: string | null;
+}
+
+/** Extrae fechas de un label de semana: "SEMANA 1 (05 & 06)" → ["05","06"]. */
+function parseFechas(dias: string): string[] {
+  return dias
+    .split(/&|,|\s+y\s+/i)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => {
+      const m = s.match(/\d{1,2}/);
+      return m ? m[0].padStart(2, "0") : s;
+    });
 }
 
 /**
- * Parse the published sheet CSV into structured months/venues/weeks.
- * Layout: month header → venue header (CAPS) → "SEMANA n (dd & dd)" rows that
- * place up to two weeks side by side → "NOMBRE,PAX" header → entry rows →
- * "TOTAL SEMANA n" row.
+ * Parsea el CSV del Sheet "GUEST LIST HOG".
+ * Estructura: mes → venue (BRUMA/CALMA) → cabecera de semana(s) lado a lado →
+ * (opcional) sub-cabecera por RP ("RP1 - RENEE", "RP2"...) → "NOMBRE,PAX" →
+ * filas de reservas → "TOTAL SEMANA n". Las entradas sin RP son propias.
  */
 export function parseSheet(csv: string): MonthData[] {
   const rows = parseCsv(csv);
   const months: MonthData[] = [];
   let month: MonthData | null = null;
   let venue: Venue | null = null;
-  let active: ActiveWeek[] = [];
+  let cols: Col[] = [];
 
   const looksLikeVenue = (cells: string[]) => {
     const head = clean(cells[0]);
-    if (!head) return false;
-    if (isMonth(head)) return false;
-    if (/^(SEMANA|NOMBRE|TOTAL|PAX)/i.test(head)) return false;
-    // venue rows are short labels (a single CAPS-ish word/brand)
+    if (!head || KEYWORD_RE.test(head) || isMonth(head)) return false;
+    if (!/[A-ZÁÉÍÓÚÑ]/.test(head)) return false;            // debe tener letras
+    if (head !== head.toUpperCase()) return false;          // venues en MAYÚSCULAS
+    if (head.length > 24) return false;
     const rest = cells.slice(1).map(clean).filter(Boolean);
-    const restNonNumeric = rest.some((v) => !/^\d+$/.test(v));
-    return head.length <= 24 && !restNonNumeric && head === head.toUpperCase();
+    return rest.every((v) => /^\d+$/.test(v));              // resto numérico o vacío
   };
 
   for (const cells of rows) {
     const c0 = clean(cells[0]);
 
-    // Month boundary
+    // 1) Mes
     if (isMonth(c0)) {
       month = { mes: c0.toUpperCase(), venues: [] };
       months.push(month);
       venue = null;
-      active = [];
+      cols = [];
       continue;
     }
     if (!month) {
-      // Allow data before an explicit month header by synthesizing one.
       month = { mes: "MES", venues: [] };
       months.push(month);
     }
 
-    // Venue boundary
-    if (looksLikeVenue(cells)) {
-      venue = { nombre: c0.toUpperCase(), weeks: [], pax: 0, reservas: 0 };
-      month.venues.push(venue);
-      active = [];
-      continue;
-    }
-    if (!venue) continue;
-
-    // Week header(s) — may place two weeks side by side. A header cell *starts*
-    // with "SEMANA n"; "TOTAL SEMANA n" rows must NOT be caught here (they begin
-    // with TOTAL and are handled below), otherwise they spawn phantom weeks.
+    // 2) Cabecera de semana(s) — puede haber dos lado a lado
     const isWeekHeader =
       !/^TOTAL/i.test(c0) &&
-      cells.some((cell) => /^SEMANA\s+\d+/i.test(clean(cell)));
+      cells.some((cell) => SEMANA_RE.test(clean(cell)));
     if (isWeekHeader) {
-      active = [];
+      if (!venue) {
+        venue = { nombre: "GENERAL", weeks: [] };
+        month.venues.push(venue);
+      }
+      cols = [];
       cells.forEach((cell, col) => {
         const cc = clean(cell);
-        if (!/^SEMANA\s+\d+/i.test(cc)) return; // skip blanks & TOTAL cells
         const m = cc.match(SEMANA_RE);
         if (!m) return;
+        const dias = (m[2] ?? "").trim();
         const week: Week = {
           index: parseInt(m[1], 10),
           label: cc,
-          dias: (m[2] ?? "").trim(),
+          dias,
+          fechas: parseFechas(dias),
           entries: [],
-          pax: 0,
-          reservas: 0,
         };
         venue!.weeks.push(week);
-        active.push({ nameCol: col, paxCol: col + 1, week });
+        cols.push({ nameCol: col, paxCol: col + 1, week, rpId: null, rpLabel: null });
       });
       continue;
     }
 
-    // Column header row "NOMBRE,PAX,..." → skip
-    if (/^NOMBRE$/i.test(c0)) continue;
-
-    // Totals row — records the official total, then closes the block
-    if (/^TOTAL/i.test(c0)) {
-      active.forEach((a) => {
-        // TOTAL value sits in the cell right after each "TOTAL SEMANA n" label
-        const totalCell = cells[a.nameCol + 1];
-        const total = toInt(totalCell);
-        if (a.week.entries.length === 0 && total > 0) a.week.pax = total;
-      });
-      active = [];
-      continue;
-    }
-
-    // Entry rows
-    if (active.length) {
-      for (const a of active) {
-        const nombre = clean(cells[a.nameCol]);
-        if (!nombre || /^(NOMBRE|TOTAL)/i.test(nombre)) continue;
-        const pax = toInt(cells[a.paxCol]);
-        const entry: Entry = { nombre, pax };
-        a.week.entries.push(entry);
-      }
-    }
-  }
-
-  // Aggregate weeks → venues
-  for (const m of months) {
-    for (const v of m.venues) {
-      for (const w of v.weeks) {
-        if (w.entries.length) {
-          w.pax = w.entries.reduce((s, e) => s + e.pax, 0);
-          w.reservas = w.entries.length;
+    // 3) Sub-cabecera por RP (actualiza el RP activo de cada columna)
+    if (cols.length && cols.some((col) => RP_RE.test(clean(cells[col.nameCol])))) {
+      for (const col of cols) {
+        const cc = clean(cells[col.nameCol]);
+        const m = cc.match(RP_ID_RE);
+        if (m) {
+          col.rpId = `RP${parseInt(m[1], 10)}`;
+          col.rpLabel = cc;
         }
       }
-      v.pax = v.weeks.reduce((s, w) => s + w.pax, 0);
-      v.reservas = v.weeks.reduce((s, w) => s + w.reservas, 0);
+      continue;
+    }
+
+    // 4) Cabecera de columnas "NOMBRE,PAX" → ignorar
+    if (/^NOMBRE$/i.test(c0)) continue;
+
+    // 5) Totales → cierra el bloque
+    if (/^TOTAL/i.test(c0)) {
+      cols = [];
+      continue;
+    }
+
+    // 6) Cabecera de venue (solo cuando no estamos dentro de un bloque)
+    if (cols.length === 0 && looksLikeVenue(cells)) {
+      venue = { nombre: c0.toUpperCase(), weeks: [] };
+      month.venues.push(venue);
+      continue;
+    }
+
+    // 7) Filas de reservas
+    if (cols.length) {
+      for (const col of cols) {
+        let nombre = clean(cells[col.nameCol]);
+        if (!nombre || KEYWORD_RE.test(nombre)) continue;
+        let fecha: string | null = null;
+        const fm = nombre.match(FECHA_RE);
+        if (fm) {
+          fecha = fm[1].padStart(2, "0");
+          nombre = nombre.replace(FECHA_RE, "").trim();
+        }
+        const entry: Entry = {
+          nombre,
+          pax: toInt(cells[col.paxCol]),
+          rp: col.rpId,
+          rpLabel: col.rpLabel,
+          fecha,
+        };
+        col.week.entries.push(entry);
+      }
     }
   }
 
+  // Limpieza: descarta venues sin reservas reales (plantilla vacía) salvo que
+  // sean los únicos, para que la app no muestre meses fantasma.
   return months;
+}
+
+/** True si el mes no trae PAX real (plantilla vacía o nombres sueltos sin PAX). */
+export function monthIsEmpty(m: MonthData | undefined): boolean {
+  if (!m) return true;
+  return m.venues.every((v) =>
+    v.weeks.every((w) => w.entries.every((e) => e.pax <= 0)),
+  );
 }

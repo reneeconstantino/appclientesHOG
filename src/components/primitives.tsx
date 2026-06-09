@@ -123,3 +123,55 @@ export function Segmented<T extends string>({
     </div>
   );
 }
+
+export function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mb-2.5 mt-1 text-[11px] font-medium uppercase tracking-[0.18em] text-white/40">
+      {children}
+    </div>
+  );
+}
+
+/** Barra de proporción fina (0..1). */
+export function ShareBar({
+  value,
+  color,
+  track = "rgba(255,255,255,0.06)",
+  height = 7,
+}: {
+  value: number;
+  color: string;
+  track?: string;
+  height?: number;
+}) {
+  const pct = Math.max(0, Math.min(1, value)) * 100;
+  return (
+    <div
+      className="w-full overflow-hidden rounded-full"
+      style={{ background: track, height }}
+    >
+      <motion.div
+        initial={{ width: 0 }}
+        animate={{ width: `${pct}%` }}
+        transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+        style={{
+          height: "100%",
+          background: `linear-gradient(90deg, ${color}AA, ${color})`,
+          boxShadow: `0 0 12px ${color}55`,
+        }}
+      />
+    </div>
+  );
+}
+
+export function Crown({ size = 14, color = "#D8B777" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M3 7l4.5 4L12 4l4.5 7L21 7l-1.8 11H4.8L3 7z"
+        fill={color}
+        fillOpacity={0.9}
+      />
+    </svg>
+  );
+}

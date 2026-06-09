@@ -2,13 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import type { MonthData, Source, Targets } from "@/lib/types";
+import type { MonthData, Source, Targets, Notes } from "@/lib/types";
 import { buildSnapshot } from "@/lib/kpi";
 import { isEmptyMonth } from "@/lib/seed";
-import { DEFAULT_TARGETS, TARGETS_STORAGE_KEY } from "@/lib/config";
+import {
+  DEFAULT_TARGETS,
+  DEFAULT_NOTES,
+  TARGETS_STORAGE_KEY,
+  NOTES_STORAGE_KEY,
+} from "@/lib/config";
 import { Pill } from "./primitives";
 import { ResumenView } from "./ResumenView";
+import { RpsView } from "./RpsView";
 import { SemanasView } from "./SemanasView";
+import { ReportesView } from "./ReportesView";
 import { MetasView } from "./MetasView";
 import { BottomTabBar, type Tab } from "./BottomTabBar";
 
@@ -21,11 +28,11 @@ export function Dashboard() {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [error, setError] = useState(false);
   const [targets, setTargets] = useState<Targets>(DEFAULT_TARGETS);
+  const [notes, setNotes] = useState<Notes>(DEFAULT_NOTES);
   const [monthIdx, setMonthIdx] = useState(0);
-  const [venueIdx, setVenueIdx] = useState(0);
   const [tab, setTab] = useState<Tab>("resumen");
 
-  // Load persisted targets (client only)
+  // Cargar persistencia (solo cliente)
   useEffect(() => {
     try {
       const raw = localStorage.getItem(TARGETS_STORAGE_KEY);
@@ -33,9 +40,14 @@ export function Dashboard() {
     } catch {
       /* noop */
     }
+    try {
+      const raw = localStorage.getItem(NOTES_STORAGE_KEY);
+      if (raw) setNotes({ ...DEFAULT_NOTES, ...JSON.parse(raw) });
+    } catch {
+      /* noop */
+    }
   }, []);
 
-  // Persist targets
   useEffect(() => {
     try {
       localStorage.setItem(TARGETS_STORAGE_KEY, JSON.stringify(targets));
@@ -44,7 +56,15 @@ export function Dashboard() {
     }
   }, [targets]);
 
-  // Fetch data
+  useEffect(() => {
+    try {
+      localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notes));
+    } catch {
+      /* noop */
+    }
+  }, [notes]);
+
+  // Datos
   useEffect(() => {
     let alive = true;
     fetch("/api/data")
@@ -52,8 +72,8 @@ export function Dashboard() {
       .then((d: ApiResponse) => {
         if (!alive) return;
         setData(d);
-        const firstWithData = d.months.findIndex((m) => !isEmptyMonth(m));
-        setMonthIdx(firstWithData >= 0 ? firstWithData : 0);
+        const first = d.months.findIndex((m) => !isEmptyMonth(m));
+        setMonthIdx(first >= 0 ? first : 0);
       })
       .catch(() => alive && setError(true));
     return () => {
@@ -61,16 +81,16 @@ export function Dashboard() {
     };
   }, []);
 
+  // Al cambiar de pestaña o mes, vuelve arriba (evita aterrizar en medio del scroll).
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [tab, monthIdx]);
+
   const month = data?.months[monthIdx];
   const snapshot = useMemo(
     () => (month ? buildSnapshot(month, targets, data!.source) : null),
     [month, targets, data],
   );
-
-  // Clamp venue index
-  useEffect(() => {
-    if (snapshot && venueIdx >= snapshot.venues.length) setVenueIdx(0);
-  }, [snapshot, venueIdx]);
 
   return (
     <div className="mx-auto min-h-[100dvh] w-full max-w-md px-4 pb-28">
@@ -82,22 +102,20 @@ export function Dashboard() {
         <div className="glass -mx-1 rounded-b-xl3 px-4 py-3.5 shadow-glass">
           <div className="flex items-end justify-between">
             <div>
-              <div className="font-display text-[2rem] font-light leading-none tracking-[0.04em] text-white">
-                BRUMA
+              <div className="font-display text-[1.7rem] font-light leading-none tracking-[0.05em] text-white">
+                GUEST <span className="gold-text font-normal">LIST</span>
               </div>
               <div className="mt-1 text-[10px] uppercase tracking-[0.26em] text-white/35">
-                Centro de cumplimiento
+                HOG · Centro de control{snapshot ? ` · ${snapshot.mes}` : ""}
               </div>
             </div>
             {snapshot && (
               <Pill tone={snapshot.source === "live" ? "mist" : "gold"}>
                 <span
                   className="inline-block h-1.5 w-1.5 rounded-full"
-                  style={{
-                    background: snapshot.source === "live" ? "#7FD8D0" : "#D8B777",
-                  }}
+                  style={{ background: snapshot.source === "live" ? "#7FD8D0" : "#D8B777" }}
                 />
-                {snapshot.source === "live" ? "Datos en vivo" : "Datos demo"}
+                {snapshot.source === "live" ? "En vivo" : "Demo"}
               </Pill>
             )}
           </div>
@@ -134,7 +152,7 @@ export function Dashboard() {
 
       {!data && !error && (
         <div className="space-y-4">
-          <div className="h-80 animate-pulse rounded-xl3 bg-white/[0.03]" />
+          <div className="h-72 animate-pulse rounded-xl3 bg-white/[0.03]" />
           <div className="grid grid-cols-2 gap-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="h-24 animate-pulse rounded-xl2 bg-white/[0.03]" />
@@ -152,22 +170,17 @@ export function Dashboard() {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.25 }}
           >
-            {tab === "resumen" && (
-              <ResumenView
-                snapshot={snapshot}
-                venueIdx={venueIdx}
-                setVenueIdx={setVenueIdx}
-              />
-            )}
-            {tab === "semanas" && (
-              <SemanasView
-                snapshot={snapshot}
-                venueIdx={venueIdx}
-                setVenueIdx={setVenueIdx}
-              />
-            )}
+            {tab === "resumen" && <ResumenView snapshot={snapshot} />}
+            {tab === "rps" && <RpsView snapshot={snapshot} />}
+            {tab === "semanas" && <SemanasView snapshot={snapshot} />}
+            {tab === "reportes" && <ReportesView snapshot={snapshot} notes={notes} />}
             {tab === "metas" && (
-              <MetasView targets={targets} setTargets={setTargets} />
+              <MetasView
+                targets={targets}
+                setTargets={setTargets}
+                notes={notes}
+                setNotes={setNotes}
+              />
             )}
           </motion.div>
         </AnimatePresence>

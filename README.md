@@ -1,81 +1,78 @@
-# BRUMA — Panel de Cumplimiento del Anexo
+# GUEST LIST HOG — Centro de control de RPs
 
-App web especializada para **gestionar, monitorear y visualizar los KPIs de cumplimiento del Anexo Bruma**. Lee tu Google Sheet, calcula tus obligaciones contractuales (PAX y reservas por semana / por mes) y entrega una **tarjeta ejecutiva exportable en imagen** para lectura instantánea desde el iPhone.
+App web para **monitorear el guest list de HOG (BRUMA, CALMA…) y medir el desempeño de cada RP**. Lee tu Google Sheet, calcula visitas (PAX) totales, propias y por RP, identifica **quién la rompe por día, por fin de semana y por mes**, sigue el **KPI de 150 visitas**, y arma **tarjetas ejecutivas exportables en PNG** para leer desde el iPhone.
 
-Diseño: estética *mist* oscura, vidrio esmerilado, acento champagne — pensada para sentirse nativa en iOS. Arquitectura: datos crudos del Sheet escondidos detrás de una interfaz limpia; toda la complejidad vive en el motor de KPIs, no en la pantalla.
+Diseño: estética *mist* oscura, vidrio esmerilado, acento champagne — nativa en iOS. Toda la complejidad vive en el motor de KPIs; la pantalla queda limpia.
 
 ---
 
+## Qué mide
+
+| Métrica | De dónde sale |
+|---|---|
+| **Visitas (PAX) totales** | suma de PAX de todas las reservas |
+| **Propias vs Vía RP** | reservas sin promotor (propias) vs atribuidas a un RP |
+| **Ranking por RP** | RP1, RP2… ordenados por PAX, con % de participación |
+| **Mejor RP por día / fin de semana / mes** | quién acumula más en cada ventana |
+| **KPI 150 Visitas** | avance de PAX del mes contra la meta (editable) |
+
+## Estructura del Sheet que entiende
+
+```
+JUNIO
+BRUMA
+SEMANA 1 (05 & 06)        SEMANA 2 (12 & 13)
+RP1 - RENEE              RP1 - RENEE
+NOMBRE   PAX             NOMBRE   PAX
+…reservas…
+RP2 …
+TOTAL SEMANA 1   TOTAL SEMANA 2
+CALMA                     ← venue sin RP: sus reservas son "propias"
+SEMANA 1 …
+```
+
+- Cada **venue** (BRUMA, CALMA…) se divide en **semanas** (un fin de semana de 2 fechas).
+- En BRUMA cada semana se subdivide por **RP** (`RP1 - RENEE`, `RP2`…). Las reservas sin RP son **propias**.
+- **Detalle por día (opcional):** agrega el día entre paréntesis al final del nombre —
+  `María López (05)` — y la app separa el 05 del 06. Sin eso, todo cuenta al fin de semana.
+
 ## Stack
 
-| Capa | Tecnología |
-|---|---|
-| Framework | Next.js 14.2.35 (App Router) + React 18 |
-| Lenguaje | TypeScript |
-| Estilos | Tailwind CSS 3.4 + variables CSS propias |
-| Animación | framer-motion |
-| Gráficas | recharts |
-| Exportar a imagen | html-to-image (PNG @ 3x) |
-| Datos | Google Sheets publicado como CSV → ruta `/api/data` (server-side, sin CORS) |
-| Hosting | Vercel |
-
-## Estructura
-
-```
-src/
-  app/            layout, estilos globales, página, y /api/data (lee el Sheet)
-  lib/            types · config · sheet (parser) · kpi (motor) · seed (demo)
-  components/     Dashboard + vistas (Resumen / Semanas / Metas) + tarjeta exportable
-public/           ícono, manifest PWA (Añadir a inicio)
-tests/            auditoría del parser y del motor de KPIs (25 pruebas)
-```
+Next.js 14 (App Router) · React 18 · TypeScript · Tailwind · framer-motion · recharts · html-to-image (PNG @3x) · datos del Sheet vía `/api/data` (server-side, sin CORS) · Vercel.
 
 ## Desarrollo local
 
 ```bash
 npm install
-npm run dev        # http://localhost:3000
-npm test           # corre la auditoría (25/25)
-npm run build      # build de producción
+./node_modules/.bin/next dev     # http://localhost:3000
+./node_modules/.bin/tsx tests/audit.ts   # auditoría del parser + motor
+./node_modules/.bin/next build   # build de producción
 ```
 
----
+> Nota: la carpeta del proyecto contiene `:` en la ruta, lo que rompe `npm run …`
+> en local (`next: command not found`). Por eso se llaman los binarios directo.
+> En Vercel no aplica (la ruta de checkout es limpia).
 
 ## Despliegue: GitHub → Vercel
 
-### 1. Subir a GitHub
-```bash
-git init
-git add .
-git commit -m "BRUMA: panel de cumplimiento del Anexo"
-git branch -M main
-git remote add origin https://github.com/TU_USUARIO/bruma.git
-git push -u origin main
-```
+1. `git push` (la estructura se sube intacta — **no** uses "Upload files" de la web, aplana las carpetas).
+2. Vercel detecta el push y re-deploya solo.
 
-### 2. Importar en Vercel
-1. Entra a **vercel.com → Add New → Project** e importa el repo.
-2. Framework: **Next.js** (autodetectado). No cambies nada del build.
-3. Agrega las **Environment Variables** (paso 3) antes de *Deploy*.
-4. **Deploy.**
+### Conectar tu Google Sheet (datos en vivo)
+La app trae datos demo por defecto. Para alimentarla con tu hoja real:
 
-### 3. Conectar tu Google Sheet (datos en vivo)
-La app trae datos de demostración por defecto. Para alimentarla con tu hoja real:
+1. En Google Sheets: **Archivo → Compartir → Publicar en la web → CSV** (o comparte como "Cualquiera con el enlace: Lector").
+2. En Vercel → **Settings → Environment Variables**:
+   - `NEXT_PUBLIC_SHEET_ID` = el ID del documento (entre `/d/` y `/edit`)
+   - `NEXT_PUBLIC_SHEET_GID` = el `gid` de la pestaña (0 por defecto)
+3. **Redeploy.** La etiqueta pasará de `Demo` a `En vivo`.
 
-1. En tu Google Sheet: **Archivo → Compartir → Publicar en la web → CSV** (publica la pestaña del mes).
-2. Copia el **ID del documento** (el tramo largo en la URL entre `/d/` y `/edit`).
-3. En Vercel → **Settings → Environment Variables**:
-   - `NEXT_PUBLIC_SHEET_ID` = tu ID de documento
-   - `NEXT_PUBLIC_SHEET_GID` = el `gid` de la pestaña (0 si es la primera)
-4. **Redeploy.** La etiqueta de origen pasará de `demo` a `en vivo`.
+> El Sheet se relee cada 60 s. Si está vacío (sin PAX) o falla la lectura, la app
+> cae con gracia a los datos demo para que el panel nunca se vea roto.
 
-> La hoja se relee cada 60 s. Si la pestaña del mes está vacía o falla la lectura, la app cae con gracia a los datos de demostración para que el panel nunca se vea roto.
+## Reportes exportables (PNG)
 
-### 4. Definir las metas del Anexo
-Las cifras contractuales reales se configuran dentro de la app, en la pestaña **Metas** (se guardan en el dispositivo). Ajusta: PAX meta mensual, PAX meta semanal, reservas meta del mes, PAX promedio objetivo por reserva y semanas operativas. Esos números son la base contra la que se mide todo el cumplimiento.
+Pestaña **Reportes** → cuatro entregables, cada uno se descarga como imagen:
+1. **Guest List y Visitas (KPI)** · 2. **Performance Mensual** · 3. **Presencia de Marca** · 4. **Plan de Comunicación**.
 
----
-
-## El motor de KPIs
-
-Por cada sede calcula: cumplimiento (% de la meta mensual), déficit de PAX, PAX promedio por reserva, ritmo semanal, proyección a fin de mes, semanas en meta, cumplimiento de reservas y delta semana contra semana. El estado (en meta / en riesgo / crítico) se deriva de umbrales sobre el cumplimiento. La lógica completa está cubierta por la suite en `tests/` — 25 pruebas sobre el parser de la hoja y el motor.
+Las partes cualitativas (plan, menciones, compromisos) se capturan en la pestaña **Metas** y se guardan en el dispositivo.
