@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html, body {
+  background: #0A0C0F;
+  color: #EDF1F4;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+body {
+  font-family: var(--font-archivo), sans-serif;
+  /* Ambient fog: two cold radial hazes drifting over the void. */
+  background-image:
+    radial-gradient(60% 40% at 15% 0%, rgba(79, 209, 232, 0.06), transparent 70%),
+    radial-gradient(50% 35% at 100% 100%, rgba(79, 209, 232, 0.04), transparent 70%);
+  background-attachment: fixed;
+  min-height: 100dvh;
+}
+
+/* Nocturnal input reset — low glare, big tap targets handled per-component. */
+input, textarea, button, select {
+  font-family: inherit;
+}
+
+::selection { background: rgba(79, 209, 232, 0.25); }
+
+/* Segmented quota meter — the app's signature. Each pip is one expected head. */
+.pip {
+  height: 6px;
+  border-radius: 2px;
+  background: #1E252E;
+  transition: background 220ms ease, box-shadow 220ms ease;
+}
+.pip--filled { background: #4FD1E8; box-shadow: 0 0 10px rgba(79, 209, 232, 0.5); }
+.pip--partial { background: #E8654F; box-shadow: 0 0 10px rgba(232, 101, 79, 0.45); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+/* Focus ring for keyboard users, tuned to the palette. */
+:focus-visible {
+  outline: 2px solid #4FD1E8;
+  outline-offset: 2px;
+}
+
+.hairline { border-color: #1E252E; }
+.scrollbar-hidden::-webkit-scrollbar { display: none; }
+.scrollbar-hidden { -ms-overflow-style: none; scrollbar-width: none; }
