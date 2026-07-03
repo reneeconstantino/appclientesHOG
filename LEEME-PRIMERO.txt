@@ -1,0 +1,51 @@
+BRUMA · CÓMO SUBIR LA APP (2 pasos)
+====================================
+
+Tu repositorio de GitHub está VACÍO (fue recreado), así que este paquete
+sube el proyecto completo desde cero con un solo script.
+
+REQUISITO: tener Git instalado → https://git-scm.com/downloads
+(En Windows, durante la instalación deja todo en "Next" con los valores default.)
+
+PASO 1 · SUBIR A GITHUB
+-----------------------
+· WINDOWS: doble clic en  SUBIR-CAMBIOS.bat
+· MAC:     abre Terminal, escribe  bash  (con espacio al final),
+           arrastra el archivo SUBIR-CAMBIOS.sh a la ventana y presiona Enter.
+
+La primera vez, Git te pedirá iniciar sesión en GitHub:
+· Si se abre el navegador → autoriza y listo (lo normal en Windows/Mac modernos).
+· Si te pide usuario y contraseña en la terminal:
+    - Usuario: reneeconstantino
+    - Contraseña: NO es tu contraseña; es un token. Créalo en
+      github.com/settings/tokens → "Generate new token (classic)" →
+      marca la casilla "repo" → Generate → copia el token y pégalo.
+
+Al terminar verás: "Listo. Vercel..." y tu repo en GitHub tendrá
+las carpetas app/, components/, lib/, types/ y los archivos de config.
+
+PASO 2 · RECONECTAR VERCEL (obligatorio, 1 minuto)
+--------------------------------------------------
+Como el repo se recreó, Vercel perdió el enlace ("repository can't be found").
+1. vercel.com → tu proyecto → Settings → Git
+2. Si aparece un repo conectado con error: "Disconnect".
+3. "Connect Git Repository" → elige reneeconstantino/appclientesHOG.
+4. Desde ese momento, CADA push a main deploya solo.
+   (El push del Paso 1 quizá no disparó deploy si Vercel aún no estaba
+   conectado: en ese caso ve a Deployments → "Create Deployment" o haz
+   Redeploy; ahora sí encontrará el repo.)
+
+RECORDATORIO · VARIABLES DE ENTORNO
+-----------------------------------
+El login necesita las variables en Vercel → Settings → Environment Variables:
+NEXTAUTH_URL, NEXTAUTH_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+GOOGLE_SA_EMAIL, GOOGLE_SA_PRIVATE_KEY, SHEET_ID
+(SHEET_ID = 1WsSso3L6IEK9HFouSROoiahdqbr_zW7WBJeC0Q-Tf0A)
+Y comparte tu Google Sheet como EDITOR con el correo de GOOGLE_SA_EMAIL.
+
+ALTERNATIVA SIN TERMINAL: GitHub Desktop
+----------------------------------------
+1. Instala https://desktop.github.com e inicia sesión.
+2. File → Clone repository → appclientesHOG → Clone.
+3. Copia TODO el contenido de esta carpeta dentro de la carpeta clonada.
+4. En GitHub Desktop: escribe un mensaje → "Commit to main" → "Push origin".
