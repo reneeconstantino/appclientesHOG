@@ -4,10 +4,23 @@ import type { Guest, WeekNote, Side, AsistenciaStatus } from "@/types";
 // ── Auth: service account con acceso de Editor a la hoja. ───────────────────
 // Los usuarios entran por NextAuth (Google) y el server hace TODAS las
 // operaciones. Único punto donde se aplican las reglas de escritura por columna.
+//
+// GOOGLE_SA_PRIVATE_KEY acepta dos formatos:
+//   - Base64 de la llave PEM completa (recomendado: una sola línea sin \n
+//     ni comillas, resistente a copiar/pegar mal en la UI de Vercel).
+//   - PEM crudo con \n literales, tal como viene en el JSON de Google.
+function normalizePrivateKey(raw: string): string {
+  const value = (raw || "").trim();
+  if (value.includes("BEGIN PRIVATE KEY")) {
+    return value.replace(/\\n/g, "\n");
+  }
+  return Buffer.from(value, "base64").toString("utf8");
+}
+
 function getSheetsClient() {
   const auth = new google.auth.JWT({
     email: process.env.GOOGLE_SA_EMAIL,
-    key: (process.env.GOOGLE_SA_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
+    key: normalizePrivateKey(process.env.GOOGLE_SA_PRIVATE_KEY || ""),
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
   return google.sheets({ version: "v4", auth });
